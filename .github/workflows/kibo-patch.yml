@@ -12,9 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check Kibo input
+      - name: Download Kibo XAPK from Release
         run: |
-          test -f kibo/input/kibo.xapk || { echo "::error::Missing kibo/input/kibo.xapk"; exit 1; }
+          mkdir -p kibo/input
+          curl -fL --retry 3 "https://github.com/Iarrhi0/animedownloader/releases/download/Kibo-original/_8dbbbeb2.xapk" -o kibo/input/kibo.xapk
+          test -s kibo/input/kibo.xapk
       - name: Install Android patch tools
         run: |
           sudo apt-get update
