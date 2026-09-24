@@ -6,8 +6,8 @@ android {
     applicationId="com.mlay.animedownloader"
     minSdk=29
     targetSdk=35
-    versionCode=12
-    versionName="12.0"
+    versionCode=13
+    versionName="13.0"
   }
 }
 dependencies {
