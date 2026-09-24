@@ -28,6 +28,10 @@ jobs:
           cp kibo/work/original/io.kibo.clarity.apk kibo/work/io.kibo.clarity.apk
       - name: Decode
         run: apktool d -f -r kibo/work/io.kibo.clarity.apk -o kibo/work/decoded
+      - name: Audit decoded Kibo
+        run: |
+          python3 kibo/scripts/audit_kibo.py kibo/work/decoded kibo/work/audit.json
+          cat kibo/work/audit.json
       - name: Apply Kibo patch
         run: python3 kibo/scripts/patch_kibo.py kibo/work/decoded
       - name: Rebuild
@@ -56,5 +60,5 @@ jobs:
           zip -q -r ../Kibo-Patched-NoAds.xapk .
       - uses: actions/upload-artifact@v4
         with:
-          name: KIBO-PATCHED-XAPK
+          name: KIBO-NOADS-AUDITED-XAPK
           path: kibo/work/Kibo-Patched-NoAds.xapk
