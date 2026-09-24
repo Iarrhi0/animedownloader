@@ -1,4 +1,4 @@
-name: Universal Android ZIP Builder
+name: KAZE Android Builder
 on:
   workflow_dispatch:
   push:
@@ -16,5 +16,5 @@ jobs:
       - run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: KAZE-V5-APK
+          name: KAZE-V7-APK
           path: app/build/outputs/apk/debug/app-debug.apk
