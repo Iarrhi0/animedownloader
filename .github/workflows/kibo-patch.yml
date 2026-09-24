@@ -21,10 +21,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y apktool zipalign
-      - name: Extract base APK
+      - name: Extract XAPK
         run: |
-          mkdir -p kibo/work
-          unzip -j kibo/input/kibo.xapk io.kibo.clarity.apk -d kibo/work
+          mkdir -p kibo/work/original
+          unzip -q kibo/input/kibo.xapk -d kibo/work/original
+          cp kibo/work/original/io.kibo.clarity.apk kibo/work/io.kibo.clarity.apk
       - name: Decode
         run: apktool d -f -r kibo/work/io.kibo.clarity.apk -o kibo/work/decoded
       - name: Apply Kibo patch
@@ -34,12 +35,26 @@ jobs:
       - name: Create signing key
         run: |
           keytool -genkeypair -v -keystore kibo/work/kibo.keystore -storepass android -keypass android -alias kibo -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Kibo Patched,O=Local,C=MG"
-      - name: Align and sign
+      - name: Sign patched base and all split APKs
         run: |
-          zipalign -f -p 4 kibo/work/kibo-patched-unsigned.apk kibo/work/Kibo-Patched-aligned.apk
-          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner sign --ks kibo/work/kibo.keystore --ks-pass pass:android --key-pass pass:android --out kibo/work/Kibo-Patched.apk kibo/work/Kibo-Patched-aligned.apk
-          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner verify --verbose kibo/work/Kibo-Patched.apk
+          BT="$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)"
+          mkdir -p kibo/work/signed
+          zipalign -f -p 4 kibo/work/kibo-patched-unsigned.apk kibo/work/base-aligned.apk
+          "$BT/apksigner" sign --ks kibo/work/kibo.keystore --ks-pass pass:android --key-pass pass:android --out kibo/work/signed/io.kibo.clarity.apk kibo/work/base-aligned.apk
+          for apk in kibo/work/original/*.apk; do
+            n="$(basename "$apk")"
+            [ "$n" = "io.kibo.clarity.apk" ] && continue
+            zipalign -f -p 4 "$apk" "kibo/work/$n.aligned"
+            "$BT/apksigner" sign --ks kibo/work/kibo.keystore --ks-pass pass:android --key-pass pass:android --out "kibo/work/signed/$n" "kibo/work/$n.aligned"
+          done
+          "$BT/apksigner" verify --verbose kibo/work/signed/io.kibo.clarity.apk
+      - name: Package installable patched XAPK
+        run: |
+          cp kibo/work/original/*.json kibo/work/signed/ 2>/dev/null || true
+          cp kibo/work/original/*.png kibo/work/signed/ 2>/dev/null || true
+          cd kibo/work/signed
+          zip -q -r ../Kibo-Patched-NoAds.xapk .
       - uses: actions/upload-artifact@v4
         with:
-          name: KIBO-PATCHED-APK
-          path: kibo/work/Kibo-Patched.apk
+          name: KIBO-PATCHED-XAPK
+          path: kibo/work/Kibo-Patched-NoAds.xapk
