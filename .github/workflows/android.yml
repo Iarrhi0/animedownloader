@@ -16,5 +16,5 @@ jobs:
       - run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: KAZE-V7-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: KAZE-V8-APK
+          path: |\n            app/build/outputs/apk/debug/app-debug.apk\n            app/build/outputs/apk/debug/output-metadata.json
