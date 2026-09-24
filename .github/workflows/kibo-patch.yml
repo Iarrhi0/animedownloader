@@ -26,11 +26,11 @@ jobs:
           mkdir -p kibo/work
           unzip -j kibo/input/kibo.xapk io.kibo.clarity.apk -d kibo/work
       - name: Decode
-        run: apktool d -f kibo/work/io.kibo.clarity.apk -o kibo/work/decoded
+        run: apktool d -f -r kibo/work/io.kibo.clarity.apk -o kibo/work/decoded
       - name: Apply Kibo patch
         run: python3 kibo/scripts/patch_kibo.py kibo/work/decoded
       - name: Rebuild
-        run: apktool b --no-res kibo/work/decoded -o kibo/work/kibo-patched-unsigned.apk
+        run: apktool b kibo/work/decoded -o kibo/work/kibo-patched-unsigned.apk
       - name: Create signing key
         run: |
           keytool -genkeypair -v -keystore kibo/work/kibo.keystore -storepass android -keypass android -alias kibo -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Kibo Patched,O=Local,C=MG"
