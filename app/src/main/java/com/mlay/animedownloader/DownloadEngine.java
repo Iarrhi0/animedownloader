@@ -1,5 +1,5 @@
 package com.mlay.animedownloader;
-import android.content.*;import android.os.*;import android.provider.MediaStore;import java.io.*;import java.net.*;import java.util.concurrent.*;import java.util.concurrent.atomic.AtomicLong;
+import android.content.*;import android.content.ContentValues;import android.os.*;import android.provider.MediaStore;import java.io.*;import java.net.*;import java.util.concurrent.*;import java.util.concurrent.atomic.AtomicLong;
 public final class DownloadEngine{
  public interface Listener{void progress(long done,long total,long bps);void state(String s);void error(String e);}
  private final ExecutorService episodes=Executors.newFixedThreadPool(3);
