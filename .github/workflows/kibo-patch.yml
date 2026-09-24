@@ -30,7 +30,7 @@ jobs:
       - name: Apply Kibo patch
         run: python3 kibo/scripts/patch_kibo.py kibo/work/decoded
       - name: Rebuild
-        run: apktool b kibo/work/decoded -o kibo/work/kibo-patched-unsigned.apk
+        run: apktool b --no-res kibo/work/decoded -o kibo/work/kibo-patched-unsigned.apk
       - name: Create signing key
         run: |
           keytool -genkeypair -v -keystore kibo/work/kibo.keystore -storepass android -keypass android -alias kibo -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Kibo Patched,O=Local,C=MG"
