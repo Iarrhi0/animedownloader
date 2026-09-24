@@ -1,6 +1,7 @@
 package com.mlay.animedownloader;
 import android.app.*;import android.os.*;import android.graphics.*;import android.graphics.drawable.*;import android.view.*;import android.content.*;import android.content.res.ColorStateList;import android.widget.*;import java.io.*;import java.net.*;import java.util.*;import java.util.concurrent.*;import org.json.*;
-public class MainActivity extends Activity{\n int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
+public class MainActivity extends Activity{
+ int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
  final int BG=Color.rgb(8,9,15),CARD=Color.rgb(22,24,35),P=Color.rgb(122,69,255),W=Color.WHITE,M=Color.rgb(174,177,195); Handler ui=new Handler(Looper.getMainLooper()); ExecutorService net=Executors.newFixedThreadPool(8); LinearLayout body; EditText query; Set<Integer> selected=new LinkedHashSet<>(); String lang="VOSTFR",quality="720p";
  public void onCreate(Bundle b){super.onCreate(b);home();}
  GradientDrawable bg(int c,int r){GradientDrawable g=new GradientDrawable();g.setColor(c);g.setCornerRadius(r);return g;} TextView tx(String s,int z,int c){TextView v=new TextView(this);v.setText(s);v.setTextSize(z);v.setTextColor(c);v.setPadding(dp(10),dp(10),dp(10),dp(10));return v;} TextView button(String s){TextView v=tx(s,16,W);v.setGravity(17);v.setTypeface(null,1);v.setBackground(bg(P,26));v.setMinHeight(dp(58));return v;}
