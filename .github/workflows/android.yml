@@ -3,9 +3,6 @@ name: Universal Android ZIP Builder
 on:
   push:
     branches: ["main", "master"]
-    paths:
-      - "**.zip"
-      - ".github/workflows/**"
   workflow_dispatch:
 
 permissions:
@@ -16,43 +13,71 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Set up Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # ==============================
-      # EXTRAIRE TOUS LES ZIP
-      # ==============================
-      - name: Extract all ZIP files
+      # ---------------------------------------
+      # Vérifier le SDK Android déjà installé
+      # ---------------------------------------
+      - name: Check Android SDK
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          if command -v sdkmanager >/dev/null 2>&1; then
+            sdkmanager --version
+          else
+            echo "sdkmanager non trouvé dans PATH"
+
+            SDKMANAGER=$(find "$ANDROID_HOME" \
+              -type f \
+              -name sdkmanager \
+              2>/dev/null | head -n 1)
+
+            if [ -z "$SDKMANAGER" ]; then
+              echo "ERREUR : sdkmanager introuvable."
+              exit 1
+            fi
+
+            SDK_DIR=$(dirname "$SDKMANAGER")
+            echo "$SDK_DIR" >> "$GITHUB_PATH"
+            "$SDKMANAGER" --version
+          fi
+
+      # ---------------------------------------
+      # Extraire TOUS les ZIP
+      # ---------------------------------------
+      - name: Extract ZIP files
         shell: bash
         run: |
           set -e
 
-          mkdir -p "$RUNNER_TEMP/android-projects"
+          ROOT="$RUNNER_TEMP/android-projects"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"
 
           COUNT=0
 
           while IFS= read -r -d '' ZIP; do
             COUNT=$((COUNT + 1))
 
-            NAME="$(basename "$ZIP" .zip)"
-            DEST="$RUNNER_TEMP/android-projects/$COUNT-$NAME"
+            NAME=$(basename "$ZIP" .zip)
+            DEST="$ROOT/$COUNT-$NAME"
 
-            echo "================================="
-            echo "ZIP trouvé : $ZIP"
-            echo "Extraction : $DEST"
-            echo "================================="
+            echo "===================================="
+            echo "ZIP : $ZIP"
+            echo "DESTINATION : $DEST"
+            echo "===================================="
 
             mkdir -p "$DEST"
             unzip -q "$ZIP" -d "$DEST"
@@ -65,16 +90,15 @@ jobs:
           )
 
           if [ "$COUNT" -eq 0 ]; then
-            echo "ERREUR : aucun ZIP trouvé."
+            echo "ERREUR : aucun fichier ZIP trouvé."
             exit 1
           fi
 
           echo "$COUNT ZIP(s) extrait(s)."
 
-      # ==============================
-      # TROUVER AUTOMATIQUEMENT
-      # LE PROJET ANDROID
-      # ==============================
+      # ---------------------------------------
+      # Détecter automatiquement Android
+      # ---------------------------------------
       - name: Detect Android project
         id: detect
         shell: bash
@@ -83,63 +107,61 @@ jobs:
 
           ROOT="$RUNNER_TEMP/android-projects"
 
-          echo "Recherche du projet Android..."
-
-          SETTINGS="$(find "$ROOT" \
+          SETTINGS=$(find "$ROOT" \
             -type f \
-            \( -name "settings.gradle.kts" -o -name "settings.gradle" \) \
-            | head -n 1)"
+            \( -name "settings.gradle" \
+               -o -name "settings.gradle.kts" \) \
+            | head -n 1)
 
-          if [ -n "$SETTINGS" ]; then
-            PROJECT_DIR="$(dirname "$SETTINGS")"
-          else
-            BUILD="$(find "$ROOT" \
-              -type f \
-              \( -name "build.gradle.kts" -o -name "build.gradle" \) \
-              | head -n 1)"
-
-            if [ -z "$BUILD" ]; then
-              echo "ERREUR : aucun projet Gradle Android trouvé."
-              exit 1
-            fi
-
-            PROJECT_DIR="$(dirname "$BUILD")"
+          if [ -z "$SETTINGS" ]; then
+            echo "ERREUR : settings.gradle(.kts) introuvable."
+            echo ""
+            echo "Contenu extrait :"
+            find "$ROOT" -maxdepth 5 -type f | sort | head -300
+            exit 1
           fi
 
-          echo "Projet détecté :"
+          PROJECT_DIR=$(dirname "$SETTINGS")
+
+          echo "Projet Android détecté :"
           echo "$PROJECT_DIR"
 
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
-      # ==============================
-      # AFFICHER LA STRUCTURE
-      # ==============================
-      - name: Show detected project
+      # ---------------------------------------
+      # Vérifier la structure
+      # ---------------------------------------
+      - name: Inspect Android project
         shell: bash
         run: |
           cd "${{ steps.detect.outputs.project_dir }}"
+
+          echo "=== DOSSIER ==="
           pwd
-          find . -maxdepth 3 -type f | sort | head -200
 
-      # ==============================
-      # PERMISSIONS GRADLE WRAPPER
-      # ==============================
-      - name: Prepare Gradle Wrapper
+          echo "=== FICHIERS ==="
+          find . -maxdepth 4 -type f | sort | head -300
+
+      # ---------------------------------------
+      # Préparer Gradle
+      # ---------------------------------------
+      - name: Prepare Gradle
         shell: bash
         run: |
           cd "${{ steps.detect.outputs.project_dir }}"
 
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            echo "Gradle Wrapper trouvé."
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            echo "Gradle Wrapper détecté."
           else
-            echo "Pas de Gradle Wrapper complet."
-            echo "Le Gradle système sera utilisé."
+            echo "Gradle Wrapper absent."
+            echo "Utilisation du Gradle installé sur GitHub."
+            gradle --version
           fi
 
-      # ==============================
-      # COMPILATION
-      # ==============================
+      # ---------------------------------------
+      # Compiler
+      # ---------------------------------------
       - name: Build APK
         shell: bash
         run: |
@@ -147,47 +169,53 @@ jobs:
 
           cd "${{ steps.detect.outputs.project_dir }}"
 
-          if [ -f "./gradlew" ]; then
-            ./gradlew --no-daemon assembleDebug
+          if [ -f gradlew ]; then
+            ./gradlew \
+              --no-daemon \
+              --stacktrace \
+              assembleDebug
           else
-            gradle --no-daemon assembleDebug
+            gradle \
+              --no-daemon \
+              --stacktrace \
+              assembleDebug
           fi
 
-      # ==============================
-      # RECHERCHER TOUS LES APK
-      # ==============================
+      # ---------------------------------------
+      # Trouver les APK
+      # ---------------------------------------
       - name: Find APK
         id: apk
         shell: bash
         run: |
           PROJECT="${{ steps.detect.outputs.project_dir }}"
 
-          echo "APK générés :"
+          echo "=== APK générés ==="
 
           find "$PROJECT" \
             -type f \
             -name "*.apk" \
             -print
 
-          APK_COUNT="$(find "$PROJECT" \
+          COUNT=$(find "$PROJECT" \
             -type f \
             -name "*.apk" \
-            | wc -l)"
+            | wc -l)
 
-          if [ "$APK_COUNT" -eq 0 ]; then
-            echo "ERREUR : aucun APK généré."
+          if [ "$COUNT" -eq 0 ]; then
+            echo "ERREUR : aucun APK trouvé."
             exit 1
           fi
 
-          echo "$APK_COUNT APK(s) trouvé(s)."
+          echo "$COUNT APK(s) généré(s)."
 
-      # ==============================
-      # UPLOAD APK
-      # ==============================
+      # ---------------------------------------
+      # Récupérer l'APK
+      # ---------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Android-APK
+          name: AnimeDownloader-APK
           path: |
             ${{ steps.detect.outputs.project_dir }}/**/*.apk
           if-no-files-found: error
