@@ -1,0 +1,43 @@
+name: Kibo Patch Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "kibo/**"
+      - ".github/workflows/kibo-patch.yml"
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Kibo input
+        run: |
+          test -f kibo/input/kibo.xapk || { echo "::error::Missing kibo/input/kibo.xapk"; exit 1; }
+      - name: Install Android patch tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apktool zipalign
+      - name: Extract base APK
+        run: |
+          mkdir -p kibo/work
+          unzip -j kibo/input/kibo.xapk io.kibo.clarity.apk -d kibo/work
+      - name: Decode
+        run: apktool d -f kibo/work/io.kibo.clarity.apk -o kibo/work/decoded
+      - name: Apply Kibo patch
+        run: python3 kibo/scripts/patch_kibo.py kibo/work/decoded
+      - name: Rebuild
+        run: apktool b kibo/work/decoded -o kibo/work/kibo-patched-unsigned.apk
+      - name: Create signing key
+        run: |
+          keytool -genkeypair -v -keystore kibo/work/kibo.keystore -storepass android -keypass android -alias kibo -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Kibo Patched,O=Local,C=MG"
+      - name: Align and sign
+        run: |
+          zipalign -f -p 4 kibo/work/kibo-patched-unsigned.apk kibo/work/Kibo-Patched-aligned.apk
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner sign --ks kibo/work/kibo.keystore --ks-pass pass:android --key-pass pass:android --out kibo/work/Kibo-Patched.apk kibo/work/Kibo-Patched-aligned.apk
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner verify --verbose kibo/work/Kibo-Patched.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KIBO-PATCHED-APK
+          path: kibo/work/Kibo-Patched.apk
