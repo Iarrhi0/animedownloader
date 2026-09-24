@@ -4,10 +4,10 @@ android {
   compileSdk=35
   defaultConfig {
     applicationId="com.mlay.animedownloader"
-    minSdk=26
+    minSdk=29
     targetSdk=35
-    versionCode=10
-    versionName="10.0"
+    versionCode=11
+    versionName="11.0"
   }
 }
 dependencies {
