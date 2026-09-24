@@ -1,0 +1,4 @@
+package com.mlay.animedownloader;
+import android.app.Activity;import android.net.Uri;import android.os.Bundle;import androidx.media3.common.MediaItem;import androidx.media3.exoplayer.ExoPlayer;import androidx.media3.ui.PlayerView;
+public class PlayerActivity extends Activity{ExoPlayer p;public void onCreate(Bundle b){super.onCreate(b);PlayerView v=new PlayerView(this);setContentView(v);String u=getIntent().getStringExtra("url");if(u==null)return;p=new ExoPlayer.Builder(this).build();v.setPlayer(p);p.setMediaItem(MediaItem.fromUri(Uri.parse(u)));p.prepare();p.play();}protected void onStop(){super.onStop();if(p!=null){p.release();p=null;}}}
+}
